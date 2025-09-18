@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <title>Hand Gesture Voice AI</title>
+  <style>
+    body { display: flex; flex-direction: column; align-items: center; background: #111; color: white; }
+    video { transform: scaleX(-1); border: 2px solid lime; border-radius: 10px; }
+    h1 { font-family: sans-serif; }
+  </style>
+</head>
+<body>
+  <h1>🤖 Hand Gesture Voice AI</h1>
+  <video id="video" width="640" height="480" autoplay></video>
+  <p id="status">Menghitung jari...</p>
+
+  <!-- Load MediaPipe Hands -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.min.js"></script>
+
+  <script>
+    const videoElement = document.getElementById("video");
+    const statusEl = document.getElementById("status");
+
+    // Mapping jari ke teks
+    const responses = {
+      5: "Halo",
+      4: "Nama saya",
+      3: "Putraxyofficial",
+      2: "Saya berprofesi cyber security dan web developer",
+      1: "Sampai jumpa"
+    };
+
+    let lastCount = null;
+
+    function speak(text) {
+      const msg = new SpeechSynthesisUtterance(text);
+      msg.lang = "id-ID";
+      window.speechSynthesis.speak(msg);
+    }
+
+    // Hitung jumlah jari terbuka
+    function countFingers(landmarks) {
+      const fingerTips = [8, 12, 16, 20];
+      const thumbTip = 4;
+      let fingers = [];
+
+      // Thumb
+      if (landmarks[thumbTip].x < landmarks[thumbTip - 2].x) {
+        fingers.push(1);
+      } else {
+        fingers.push(0);
+      }
+
+      // Other 4 fingers
+      fingerTips.forEach(tip => {
+        if (landmarks[tip].y < landmarks[tip - 2].y) {
+          fingers.push(1);
+        } else {
+          fingers.push(0);
+        }
+      });
+
+      return fingers.reduce((a, b) => a + b, 0);
+    }
+
+    // Setup MediaPipe Hands
+    const hands = new Hands({
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+    });
+
+    hands.setOptions({
+      maxNumHands: 1,
+      modelComplexity: 1,
+      minDetectionConfidence: 0.7,
+      minTrackingConfidence: 0.5
+    });
+
+    hands.onResults(results => {
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        const landmarks = results.multiHandLandmarks[0];
+        const fingerCount = countFingers(landmarks);
+        statusEl.textContent = "Jari: " + fingerCount;
+
+        if (responses[fingerCount] && fingerCount !== lastCount) {
+          speak(responses[fingerCount]);
+          lastCount = fingerCount;
+        }
+      }
+    });
+
+    // Kamera
+    const camera = new Camera(videoElement, {
+      onFrame: async () => {
+        await hands.send({ image: videoElement });
+      },
+      width: 640,
+      height: 480
+    });
+    camera.start();
+  </script>
+</body>
+  </html>
